@@ -1,0 +1,14 @@
+[package]
+name = "p9_server"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# 非同期処理ランタイム（フル機能有効化）
+tokio = { version = "1", features = ["full"] }
+
+# 9Pプロトコル処理ライブラリ
+rs9p = "0.4"
+
+# システム情報（CPU・メモリ）取得用
+sysinfo = "0.30"
