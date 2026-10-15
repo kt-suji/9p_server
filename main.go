@@ -1,61 +1,25 @@
 package main
 
 import (
-	"fmt"
 	"log"
-	"net"
-	"os"
-	"strings"
 
-	"aqwari.net/net/styx"
-	"github.com/shirou/gopsutil/v3/cpu"
+	"github.com/knusbaum/go9p"
+	"github.com/knusbaum/go9p/fs"
 )
 
 func main() {
-	// styx.HandlerFunc は *styx.Session を1つ受け取る関数です
-	handler := styx.HandlerFunc(func(s *styx.Session) {
-		// クライアントから届くリクエストをループで1つずつ処理する
-		for s.Next() {
-			switch req := s.Request().(type) {
+	// fs.NewFS の戻り値 rootDir は最初から *fs.StaticDir
+	p9FS, rootDir := fs.NewFS("user", "user", 0755)
 
-			// 探索リクエスト (Walk)
-			case styx.Twalk:
-				req.Rwalk(nil, nil)
+	// TreeBuilder にそのまま渡す
+	tree := NewTreeBuilder(p9FS, rootDir)
 
-			// オープンリクエスト (Open)
-			case styx.Topen:
-				switch req.Path() {
-				case "/hello":
-					message := "Hello from Windows 9P Server!\n"
-					req.Ropen(strings.NewReader(message), nil)
+	// nodes.go の全ノードを一括展開
+	SetupAllNodes(tree)
 
-				case "/sys/cpu":
-					percents, err := cpu.Percent(0, false)
-					if err != nil || len(percents) == 0 {
-						req.Rerror("CPU error")
-						continue
-					}
-					cpuString := fmt.Sprintf("CPU: %.1f%%\n", percents[0])
-					req.Ropen(strings.NewReader(cpuString), nil)
-
-				default:
-					req.Ropen(nil, os.ErrNotExist)
-				}
-			}
-		}
-	})
-
-	// ネットワークの待ち受けと起動
-	listener, err := net.Listen("tcp", ":5640")
-	if err != nil {
-		log.Fatalf("[ERROR] ポートのバインドに失敗しました: %v", err)
-	}
-	log.Println("[INFO] Windows 9P Serverがポート5640で待機中...")
-
-	srv := &styx.Server{
-		Handler: handler,
-	}
-	if err := srv.Serve(listener); err != nil {
-		log.Fatalf("[ERROR] 9Pサーバーの起動に失敗しました: %v", err)
+	log.Println("9P Server listening on :5640 ...")
+	// Srv インターフェースを実装しているのは p9FS (または p9FS.Server())
+	if err := go9p.Serve(":5640", p9FS.Server()); err != nil {
+		log.Fatalf("Server error: %v", err)
 	}
 }
