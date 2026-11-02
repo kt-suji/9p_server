@@ -8,18 +8,15 @@ import (
 )
 
 func main() {
-	// fs.NewFS の戻り値 rootDir は最初から *fs.StaticDir
+	cfg := loadServerConfig("config.yaml")
+
 	p9FS, rootDir := fs.NewFS("user", "user", 0755)
 
-	// TreeBuilder にそのまま渡す
 	tree := NewTreeBuilder(p9FS, rootDir)
+	SetupAllNodes(tree, cfg)
 
-	// nodes.go の全ノードを一括展開
-	SetupAllNodes(tree)
-
-	log.Println("9P Server listening on :5640 ...")
-	// Srv インターフェースを実装しているのは p9FS (または p9FS.Server())
-	if err := go9p.Serve(":5640", p9FS.Server()); err != nil {
-		log.Fatalf("Server error: %v", err)
+	log.Printf("[INFO] 9P Server listening on %s ...\n", cfg.Server.ListenAddr)
+	if err := go9p.Serve(cfg.Server.ListenAddr, p9FS.Server()); err != nil {
+		log.Fatalf("[ERROR] Server error: %v", err)
 	}
 }
